@@ -39,7 +39,7 @@ push, PR 생성 같은 원격 반영은 구현하지 않았습니다. 생성된 
 |---|---|---|---|
 | `--provider` | `AI_PROVIDER` | `openai` | `openai`(호환 서버 포함) 또는 `anthropic` |
 | `--model` | `AI_MODEL` | provider별 기본 모델 | 모델명 |
-| `--temperature` | `AI_TEMPERATURE` | `0.3` | 0~2 (anthropic은 0~1) |
+| `--temperature` | `AI_TEMPERATURE` | `0.3` | 0에서 2 (anthropic은 0에서 1) |
 | `--max-tokens` | `AI_MAX_TOKENS` | `600` | 응답 최대 토큰 |
 | `--base-url` | `AI_API_BASE_URL` | provider별 공식 주소 | OpenAI 호환 서버 주소 |
 | `--max-files` | - | `10` | safe-mode 전용: 전송할 최대 파일 수 |
@@ -487,8 +487,8 @@ B3-1 저장소의 `git log --oneline -15`를 분석해 `docs/COMMIT_CONVENTION.m
 - **테스트 실행**: `python -m unittest discover -s tests` (키·네트워크 불필요). `python -m unittest`만 쓰면 `tests` 폴더가 패키지가 아니라서 테스트가 0개 실행됩니다.
 - **Windows에서 커밋 직후 한글이 깨져 보임**: `git commit -m "한글"` 직후 출력이 깨져도 저장된 메시지는 정상인 경우가 있습니다. `git log -1 --format=%B`와 `git config --get i18n.commitencoding`으로 확인하세요(이 저장소는 둘 다 utf-8). 다만 터미널 인코딩이 불안하면 커밋 메시지를 영어로 쓰는 것이 안전합니다.
 
-  ![커밋 직후 깨진 출력]({IMG}git-workflow/commit-push-garbled-display.png)
+  ![커밋 직후 깨진 출력](docs/screenshots/git-workflow/commit-push-garbled-display.png)
 
-  ![저장된 메시지와 인코딩 확인]({IMG}git-workflow/git-log-encoding-utf8.png)
+  ![저장된 메시지와 인코딩 확인](docs/screenshots/git-workflow/git-log-encoding-utf8.png)
 - **`--convention` 파일 인코딩**: UTF-8로 저장해야 합니다. Windows 메모장에서 ANSI로 저장하면 `[ERROR] 컨벤션 파일은 UTF-8 텍스트여야 합니다`가 출력됩니다.
 - **실제 AI 응답은 직접 확인이 필요합니다**: 테스트는 가짜 서버로 요청 형식과 처리 흐름을 검증한 것이며, 실제 모델 응답의 품질은 사용자가 키를 설정해 실행해서 확인해야 합니다.
