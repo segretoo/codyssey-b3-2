@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 import postprocess
-from ai_client import DEFAULT_BASE_URLS, DEFAULT_MODELS, PROVIDERS, AIClient, AIConfig, AIError
+from ai_client import DEFAULT_BASE_URLS, DEFAULT_MODELS, PROVIDERS, AIClient, AIConfig, AIError, is_reasoning_model
 from gitcollect import GitError, collect_changes
 from prompts import build_messages
 from safety import DEFAULT_MAX_FILES, DEFAULT_MAX_LINES, apply_safe_mode, count_sensitive
@@ -155,7 +155,7 @@ def run(args: argparse.Namespace) -> int:
     api_key = os.environ.get("AI_API_KEY", "").strip()
     if not api_key and not args.dry_run:
         error("AI_API_KEY 환경변수가 설정되지 않았습니다.")
-        print('## 예) export AI_API_KEY="YOUR_KEY"', file=sys.stderr)
+        print('      예) export AI_API_KEY="YOUR_KEY"', file=sys.stderr)
         return EXIT_ERROR
 
     try:
@@ -213,7 +213,8 @@ def run(args: argparse.Namespace) -> int:
 
     # 4) AI API 호출 (명령당 1회)
     client = AIClient(cfg)
-    info(f"AI API 요청 중... (provider={cfg.provider}, model={cfg.model}, temperature={cfg.temperature:g}, max_tokens={cfg.max_tokens})")
+    temp_label = "모델 기본값" if is_reasoning_model(cfg.provider, cfg.model) else f"{cfg.temperature:g}"
+    info(f"AI API 요청 중... (provider={cfg.provider}, model={cfg.model}, temperature={temp_label}, max_tokens={cfg.max_tokens})")
     try:
         raw = client.generate(system, user)
     except AIError as e:
