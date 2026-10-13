@@ -34,6 +34,29 @@ class OpenAIRequestTest(unittest.TestCase):
         self.assertEqual([m["role"] for m in j["messages"]], ["system", "user"])
 
 
+class ReasoningModelRequestTest(unittest.TestCase):
+    def test_gpt5_uses_max_completion_tokens_and_no_temperature(self):
+        with FakeAIServer() as srv:
+            AIClient(cfg(srv.base_url, model="gpt-5-mini")).generate("S", "U")
+        j = srv.requests[0]["json"]
+        self.assertNotIn("temperature", j)
+        self.assertNotIn("max_tokens", j)
+        self.assertEqual(j["max_completion_tokens"], 123 + 1500)
+
+    def test_gpt4o_keeps_classic_params(self):
+        with FakeAIServer() as srv:
+            AIClient(cfg(srv.base_url, model="gpt-4o-mini")).generate("S", "U")
+        j = srv.requests[0]["json"]
+        self.assertEqual((j["temperature"], j["max_tokens"]), (0.2, 123))
+        self.assertNotIn("max_completion_tokens", j)
+
+    def test_anthropic_never_treated_as_reasoning(self):
+        with FakeAIServer() as srv:
+            AIClient(cfg(srv.base_url, provider="anthropic", model="gpt-5-x")).generate("S", "U")
+        j = srv.requests[0]["json"]
+        self.assertEqual((j["temperature"], j["max_tokens"]), (0.2, 123))
+
+
 class AnthropicRequestTest(unittest.TestCase):
     def test_request_shape(self):
         with FakeAIServer() as srv:

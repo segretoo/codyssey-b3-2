@@ -83,6 +83,13 @@ python /path/to/codyssey-b3-2/main.py pr --model gpt-4o-mini --temperature 0.2 -
 python /path/to/codyssey-b3-2/main.py commit --safe-mode --dry-run
 ```
 
+코디세이 API 콘솔의 OpenAI 호환 엔드포인트를 쓰려면 아래처럼 주소와 모델을 지정합니다. 모델 ID는 콘솔의 모델 표와 같아야 합니다.
+
+```bash
+export AI_API_BASE_URL="https://copa.codyssey.kr/v1"
+export AI_MODEL="gpt-5-mini"
+```
+
 Anthropic을 쓰려면 `--provider anthropic`(또는 `AI_PROVIDER=anthropic`)을 추가합니다. 기본 모델명은 시간이 지나 바뀔 수 있으니 오류가 나면 `--model`로 사용 가능한 모델을 직접 지정하세요.
 
 ### 실행 결과 예시
@@ -92,7 +99,7 @@ Anthropic을 쓰려면 `--provider anthropic`(또는 `AI_PROVIDER=anthropic`)을
 ```text
 $ python main.py commit            # AI_API_KEY 미설정
 [ERROR] AI_API_KEY 환경변수가 설정되지 않았습니다.
-## 예) export AI_API_KEY="YOUR_KEY"
+      예) export AI_API_KEY="YOUR_KEY"
 
 $ python main.py commit            # 변경 사항 없음
 [INFO] 현재 브랜치: feature/commit-pr-generator
@@ -103,22 +110,23 @@ $ python main.py commit            # git 저장소가 아닌 곳
 [ERROR] Git 저장소가 아닙니다. `git init` 된 프로젝트 루트에서 실행하세요.
 ```
 
-아래는 **출력 형식을 보여주는 예시**입니다. 문구 자체는 모델과 변경 내용에 따라 실행마다 달라집니다.
+아래는 **실제 AI API 호출 결과**입니다. 코디세이 API 게이트웨이와 `gpt-5-mini`로 이 프로젝트의 변경분(4개 파일, diff 140줄)을 대상으로 실행했습니다. 문구 자체는 모델과 변경 내용에 따라 실행마다 달라집니다.
 
 ```text
-$ python main.py commit --safe-mode
+$ python main.py commit
 [INFO] 현재 브랜치: feature/commit-pr-generator
-[INFO] Git status 수집 완료: 3개 파일 변경 감지
-[INFO] Git diff 수집 완료: 128줄
-[INFO] safe-mode ON: 민감정보 0건 마스킹 · 파일 3→3개 · 줄 128→128줄
-[INFO] AI API 요청 중... (provider=openai, model=gpt-4o-mini, temperature=0.3, max_tokens=600)
+[INFO] Git status 수집 완료: 4개 파일 변경 감지
+[INFO] Git diff 수집 완료: 140줄
+[INFO] AI API 요청 중... (provider=openai, model=gpt-5-mini, temperature=모델 기본값, max_tokens=600)
 [DONE] 커밋 메시지 생성 완료
 
 --- Commit Message ---
-feat: Git 변경 사항 기반 커밋 메시지 자동 생성 기능 추가
+feat(ai_client): 추론형 모델에 max_completion_tokens 지원
 
-- main.py: git diff 결과를 AI 입력으로 전달하는 흐름 구현
-- prompts.py: 커밋 형식 규칙(제목 길이, type 접두어) 프롬프트에 반영
+ai_client.py, main.py, tests/test_ai_client.py
+
+- ai_client.py: REASONING_MODEL_RE·REASONING_HEADROOM와 is_reasoning_model 추가, reasoning 모델이면 payload에 max_completion_tokens = max_tokens + 1500를 사용하고 temperature/max_tokens는 제외하도록 요청 생성 로직 변경
+- main.py/tests: AI 호출 로그에서 reasoning 모델일 때 temperature를 "모델 기본값"으로 표시하도록 변경하고 ReasoningModelRequestTest를 추가하여 동작 검증
 ----------------------
 [INFO] AI API 호출 횟수: 1회
 [INFO] 생성된 문구는 초안입니다. 반드시 검토 후 사용하세요.
@@ -126,23 +134,53 @@ feat: Git 변경 사항 기반 커밋 메시지 자동 생성 기능 추가
 
 ```text
 $ python main.py pr
+[INFO] 현재 브랜치: feature/commit-pr-generator
+[INFO] Git status 수집 완료: 4개 파일 변경 감지
+[INFO] Git diff 수집 완료: 140줄
+[INFO] AI API 요청 중... (provider=openai, model=gpt-5-mini, temperature=모델 기본값, max_tokens=600)
 [DONE] PR 초안 생성 완료
 
 --- PR Title ---
-feat: 커밋/PR 초안 자동 생성 CLI 추가
+추론 모델(gpt-5/o 계열) 지원: max_completion_tokens 사용 및 temperature 처리 변경
 ----------------
+
 --- PR Body ---
 ## Why
-- 커밋 메시지와 PR 설명 작성에 드는 시간을 줄이고 형식을 일관되게 맞추기 위해서입니다.
+- 일부 추론 모델(gpt-5·o 계열)은 temperature나 max_tokens 파라미터를 받지 않으므로, 해당 모델에서는 기존 파라미터 대신 max_completion_tokens(= max_tokens + 여유분)를 보내야 함.
+- 모델별 파라미터 처리 방식이 달라지므로 AI 요청 페이로드 구성과 로그 메시지를 명확히 구분해야 함.
+- 이 동작을 문서(README)와 유닛 테스트에 반영하여 동작을 검증하기 위함.
 
 ## What
-- main.py: commit / pr 서브커맨드와 옵션 처리
-- safety.py: safe-mode 마스킹 및 전송량 제한
+- README.md
+  - 추론 모델(gpt-5·o 계열)은 temperature 조정과 max_tokens를 받지 않아, 대신 max_completion_tokens(= max_tokens + 추론 여유분 1500)를 보낸다는 설명 추가 및 테스트 수(69→72) 업데이트.
+- ai_client.py
+  - import re 추가.
+  - REASONING_MODEL_RE, REASONING_HEADROOM(1500) 상수 추가 및 is_reasoning_model(provider, model) 함수 추가.
+  - AI 요청 페이로드 구성 로직 변경: 일반 모델은 기존대로 temperature와 max_tokens를 사용하고, 추론 모델로 판단되면 temperature와 max_tokens를 보내지 않고 max_completion_tokens = c.max_tokens + REASONING_HEADROOM를 포함하는 payload를 전송하도록 변경.
+- main.py
+  - is_reasoning_model를 import 하도록 수정.
+  - AI 요청 로그(info)에 대해 추론 모델일 경우 temperature 값을 "모델 기본값"으로 표기하도록 문자열 구성 변경.
+- tests/test_ai_client.py
+  - ReasoningModelRequestTest 클래스 추가:
+    - test_gpt5_uses_max_completion_tokens_and_no_temperature: gpt-5 모델 요청에 temperature/max_tokens가 없고 max_completion_tokens가 123 + 1500인지 검증.
+    - test_gpt4o_keeps_classic_params: gpt-4o 모델은 기존 temperature·max_tokens를 유지하고 max_completion_tokens를 포함하지 않는지 검증.
+    - test_anthropic_never_treated_as_reasoning: provider="anthropic"인 경우 모델명이 gpt-5 포맷이더라도 추론 모델로 처리되지 않는지 검증.
 
 ## How to Test
-- export AI_API_KEY="YOUR_KEY"
-- python main.py commit, python main.py pr 실행 후 Why/What/How to Test 구조 확인
+- 유닛 테스트 실행 (추가한 테스트만 실행)
+  - python -m unittest tests.test_ai_client.ReasoningModelRequestTest
+  - 기대 결과: 세 테스트 모두 성공(pass).
+- 전체 테스트 실행
+  - python -m unittest
+  - 기대 결과: 전체 테스트(예상 72개)가 모두 성공(pass).
+- 수동 확인(동작 흐름 관찰)
+  - AI 요청 로그에서 추론 모델일 때 info 로그의 temperature가 "모델 기본값"으로 출력되는지 확인.
+  - ai_client.py의 generate 호출 시 서버로 전송된 JSON 페이로드를 확인하여:
+    - gpt-5 계열: "temperature" 및 "max_tokens" 필드가 없고 "max_completion_tokens"가 c.max_tokens + 1500인지 확인.
+    - gpt-4o 등 일반 모델: "temperature"와 "max_tokens"가 존재하고 "max_completion_tokens"는 없는지 확인.
 ---------------
+[INFO] AI API 호출 횟수: 1회
+[INFO] 생성된 문구는 초안입니다. 반드시 검토 후 사용하세요.
 ```
 
 ## 프로젝트 구조
@@ -157,7 +195,7 @@ codyssey-b3-2/
 ├── postprocess.py     # 출력 검증 + 규칙에 맞게 후처리
 ├── conventions/
 │   └── example.md     # --convention 에 넘기는 팀 컨벤션 예시
-├── tests/             # unittest 69개 (가짜 API 서버로 HTTP 왕복까지 검증)
+├── tests/             # unittest 72개 (가짜 API 서버로 HTTP 왕복까지 검증)
 └── README.md
 ```
 
@@ -195,7 +233,7 @@ main.py ─┬─ gitcollect.py   (변경 사항 수집)
 
 - `temperature`가 낮으면 같은 diff에 비슷한 문장이 나와 **형식이 안정적**이고, 높으면 표현이 다양해지는 대신 규칙을 어길 가능성이 커집니다. 커밋 메시지는 일관성이 중요해 기본값을 `0.3`으로 뒀습니다.
 - `max_tokens`가 너무 작으면 PR 본문이 **중간에 끊기거나 섹션이 빠집니다.** 너무 크면 불필요하게 길어지고 비용 상한만 늘어납니다. 기본 `600`은 PR 본문 3섹션이 들어갈 정도로 잡았습니다.
-- 두 값 모두 `--temperature`, `--max-tokens`(또는 환경변수)로 바꿀 수 있습니다. 일부 모델은 이 파라미터를 받지 않거나 이름이 다를 수 있어, 그 경우 API 오류 메시지가 그대로 출력됩니다.
+- 두 값 모두 `--temperature`, `--max-tokens`(또는 환경변수)로 바꿀 수 있습니다. `gpt-5`·`o` 계열 추론 모델은 `temperature` 조정과 `max_tokens`를 받지 않아, 이 모델에서는 `temperature`를 보내지 않고 `max_completion_tokens`(= `max_tokens` + 추론 여유분 1500)를 대신 보냅니다. 그 외 모델이 파라미터를 거부하면 API 오류 메시지가 그대로 출력됩니다.
 
 **Q. `git status`, `git diff` 결과를 어떻게 프로그램 입력으로 연결했나요?**
 **"`subprocess`로 git을 실행하고, 출력 텍스트를 구조화(`Changes`)한 뒤 프롬프트에 끼워 넣습니다."** (`gitcollect.py`)

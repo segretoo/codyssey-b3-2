@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import re
 import socket
 import urllib.error
 import urllib.request
@@ -15,6 +16,16 @@ from dataclasses import dataclass
 from safety import mask_text
 
 DEFAULT_MODELS = {"openai": "gpt-4o-mini", "anthropic": "claude-haiku-5-5"}
+# gpt-5 / o-시리즈 같은 추론 모델은 max_tokens 대신 max_completion_tokens 를 쓰고,
+# temperature 는 기본값(1)만 허용한다. 추론에 쓰는 토큰도 한도에 포함되므로 여유분을 더해 준다.
+REASONING_MODEL_RE = re.compile(r"^(gpt-5|o\d)", re.IGNORECASE)
+REASONING_HEADROOM = 1500
+
+
+def is_reasoning_model(provider: str, model: str) -> bool:
+    return provider == "openai" and bool(REASONING_MODEL_RE.match(model))
+
+
 DEFAULT_BASE_URLS = {
     "openai": "https://api.openai.com/v1",
     "anthropic": "https://api.anthropic.com/v1",
@@ -83,18 +94,22 @@ class AIClient:
                     "messages": [{"role": "user", "content": user}],
                 },
             )
+        payload = {
+            "model": c.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        if is_reasoning_model(c.provider, c.model):
+            payload["max_completion_tokens"] = c.max_tokens + REASONING_HEADROOM
+        else:
+            payload["temperature"] = c.temperature
+            payload["max_tokens"] = c.max_tokens
         return (
             f"{base}/chat/completions",
             {"Authorization": f"Bearer {c.api_key}", "Content-Type": "application/json"},
-            {
-                "model": c.model,
-                "temperature": c.temperature,
-                "max_tokens": c.max_tokens,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-            },
+            payload,
         )
 
     # ---- transport ----------------------------------------------------
