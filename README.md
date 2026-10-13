@@ -94,6 +94,18 @@ Anthropic을 쓰려면 `--provider anthropic`(또는 `AI_PROVIDER=anthropic`)을
 
 ### 실행 결과 예시
 
+**성공 화면**: 코디세이 API 게이트웨이(`gpt-5-mini`)로 이 프로젝트의 변경분(4개 파일, diff 140줄)을 대상으로 실행한 결과입니다. `commit`과 `pr` 모두 호출 횟수 1회로 끝납니다.
+
+![commit 성공](docs/screenshots/01-commit-success.png)
+
+![pr 성공 (Why / What)](docs/screenshots/02-pr-success-1.png)
+
+![pr 성공 (How to Test)](docs/screenshots/02-pr-success-2.png)
+
+**파라미터 변경**: 모델, `--temperature`, `--max-tokens`를 바꾸면 요청 로그에 그대로 반영됩니다.
+
+![옵션 변경](docs/screenshots/06-options-model-temperature-max-tokens.png)
+
 아래는 **실제로 실행해 캡처한 오류/예외 상황** 출력입니다.
 
 ```text
@@ -109,6 +121,16 @@ $ python main.py commit            # git 저장소가 아닌 곳
 [WARN] 현재 디렉토리에 .git 이 없습니다. 프로젝트 루트에서 실행하는 것을 권장합니다.
 [ERROR] Git 저장소가 아닙니다. `git init` 된 프로젝트 루트에서 실행하세요.
 ```
+
+위 상황을 실제 터미널에서 캡처한 화면입니다.
+
+![키 미설정](docs/screenshots/03-error-missing-key.png)
+
+![잘못된 키 (HTTP 401)](docs/screenshots/04-error-wrong-key-401.png)
+
+![키 종류 불일치 (HTTP 403)](docs/screenshots/05-error-forbidden-403.png)
+
+![변경 사항 없음 (main 브랜치)](docs/screenshots/08-no-changes-main.png)
 
 아래는 **실제 AI API 호출 결과**입니다. 코디세이 API 게이트웨이와 `gpt-5-mini`로 이 프로젝트의 변경분(4개 파일, diff 140줄)을 대상으로 실행했습니다. 문구 자체는 모델과 변경 내용에 따라 실행마다 달라집니다.
 
@@ -183,6 +205,68 @@ $ python main.py pr
 [INFO] 생성된 문구는 초안입니다. 반드시 검토 후 사용하세요.
 ```
 
+### Git 작업 기록 (브랜치 → PR → 머지)
+
+이 도구로 만든 커밋/PR 문구를 이 저장소 자체의 PR 작성에 사용했습니다. 기능 단위 브랜치 `feature/commit-pr-generator`에서 작업하고 PR 두 건을 `main`에 머지했습니다.
+
+| PR | 내용 | 문구 작성 |
+|---|---|---|
+| [#1](https://github.com/segretoo/codyssey-b3-2/pull/1) | 추론 모델(gpt-5·o 계열) 지원: `max_completion_tokens` 사용, README 실행 결과 보강 | `python main.py commit` / `pr` 초안을 검토·수정해 사용 |
+| [#2](https://github.com/segretoo/codyssey-b3-2/pull/2) | 컨벤션 커스터마이징 데모 파일(`conventions/b3-2-demo.md`) 추가 | 변경이 파일 1개라 직접 작성 |
+
+**AI 초안 → 최종 PR에서 고친 점**
+
+- 제목, Why, What은 초안이 diff를 정확히 반영해 그대로 사용했습니다.
+- How to Test의 전체 테스트 명령 `python -m unittest`를 `python -m unittest discover -s tests`로 고쳤습니다. `tests` 폴더에 `__init__.py`가 없어 원래 명령은 테스트가 0개 실행됩니다.
+- "예상 72개"를 실제 실행 결과인 "72개"로 고쳤습니다.
+- 본문 끝에 이 PR 설명이 AI 초안을 검토해 수정한 것이라는 `## 참고` 한 줄을 추가했습니다.
+- 정리하면 초안은 변경 내용 요약에는 믿을 만했지만, **실행 명령의 정확성은 사람이 직접 돌려 봐야** 했습니다.
+
+![PR 작성 화면](docs/screenshots/14-pr-1-compose.png)
+
+![PR #2 열린 상태](docs/screenshots/16-pr-2-open.png)
+
+![머지된 PR 목록](docs/screenshots/19-github-pull-requests.png)
+
+![브랜치 목록](docs/screenshots/20-github-branches.png)
+
+![커밋 그래프](docs/screenshots/17-git-log-graph.png)
+
+![GitHub 저장소 main](docs/screenshots/18-github-repo-main.png)
+
+![단위 테스트 72개 통과](docs/screenshots/09-unittest-72-ok.png)
+
+### 이전 미션 저장소(B3-1)에 실제 적용 (보너스)
+
+이 도구를 B3-1 저장소(`segretoo/codyssey-b3-1`)에 실제로 사용해 PR을 올리고 머지했습니다. 도구는 B3-1 폴더 안에서 `python <도구경로>/main.py ...`로 실행했습니다.
+
+| PR | 내용 | 상태 |
+|---|---|---|
+| [#1](https://github.com/segretoo/codyssey-b3-1/pull/1) | `.github/pull_request_template.md`, `docs/COMMIT_CONVENTION.md` 추가 | 머지 |
+| [#2](https://github.com/segretoo/codyssey-b3-1/pull/2) | 커밋 이력 분석과 scope 규칙 보강 | 머지 |
+
+![B3-1에서 브랜치 생성](docs/screenshots/bonus-b3-1/01-vscode-branch-created.png)
+
+**AI 초안 → 최종 PR 요약**
+
+- 실행: `python <도구경로>/main.py commit --safe-mode`, `pr --safe-mode`로 초안을 만들었습니다. 변경 2파일 42줄, 민감정보 0건, API 호출은 명령당 1회였습니다.
+- PR 제목: 초안은 `문서: PR 템플릿 및 커밋 컨벤션 추가`로 나왔습니다. B3-1의 기존 이력이 `docs:` 접두어를 쓰므로 `docs:`로 고쳐 올렸습니다.
+- 커밋 메시지: 초안 본문에 `.github/pull_request_template.md, docs/COMMIT_CONVENTION.md`처럼 파일명만 나열한 줄이 있었습니다. 그대로 쓰지 않고 직접 작성한 한 줄 메시지로 커밋했습니다.
+- PR 본문: Why / What / How to Test 구조와 변경 요약은 초안이 diff를 잘 반영해 그대로 사용했습니다.
+- 배운 점: 초안은 요약에는 믿을 만했지만 **저장소의 기존 스타일(접두어 언어, 파일명 나열 금지)은 모르기 때문에** 사람이 맞춰야 했습니다. 이것이 아래 컨벤션 분석의 출발점입니다.
+
+![AI가 만든 커밋·PR 초안](docs/screenshots/bonus-b3-1/05-tool-commit-pr-draft.png)
+
+![AI가 만든 PR 본문 초안](docs/screenshots/bonus-b3-1/06-tool-pr-body-draft.png)
+
+![PR #1 열린 상태(제목 수정, 본문은 초안 기반)](docs/screenshots/bonus-b3-1/07-pr1-open-ai-draft-body.png)
+
+![PR #2 열린 상태](docs/screenshots/bonus-b3-1/14-pr2-open.png)
+
+![PR #1 머지 후 커밋 그래프](docs/screenshots/bonus-b3-1/16-merged-pr1-graph.png)
+
+![PR #2 머지 후 커밋 그래프](docs/screenshots/bonus-b3-1/17-merged-pr2-graph.png)
+
 ## 프로젝트 구조
 
 ```text
@@ -194,8 +278,10 @@ codyssey-b3-2/
 ├── ai_client.py       # AI API REST 호출, 오류 해석
 ├── postprocess.py     # 출력 검증 + 규칙에 맞게 후처리
 ├── conventions/
-│   └── example.md     # --convention 에 넘기는 팀 컨벤션 예시
+│   ├── example.md     # --convention 에 넘기는 팀 컨벤션 예시
+│   └── b3-2-demo.md   # 적용 전/후 비교용 데모 컨벤션 (제목 [B3-2] 접두어)
 ├── tests/             # unittest 72개 (가짜 API 서버로 HTTP 왕복까지 검증)
+├── docs/screenshots/  # 실행 결과·GitHub 화면 캡처 (README에서 참조)
 └── README.md
 ```
 
@@ -273,14 +359,29 @@ main.py ─┬─ gitcollect.py   (변경 사항 수집)
 | (B) 전송량 제한 | 기본 **최대 10개 파일 / 200줄**, `--max-files`, `--max-lines`로 조정 |
 | 추가 규칙 | `--mask-pattern "EMP-\d+"` 처럼 정규식을 직접 추가 (여러 번 지정 가능) |
 
-safe-mode 없이 실행해도 민감정보로 보이는 패턴이 있으면 경고를 출력합니다. 아래는 같은 변경 사항을 `--dry-run`으로 확인한 **ON/OFF 비교**입니다(`API_TOKEN`은 데모용 가짜 값).
+safe-mode 없이 실행해도 민감정보로 보이는 패턴이 있으면 경고를 출력합니다. 아래는 **API 호출 없이 `--dry-run`으로 확인한 ON/OFF 비교**이며, 값은 모두 데모용 가짜입니다.
+
+**실험 1: 마스킹 확인** (`password = "supersecret1234"`가 담긴 새 파일을 포함한 변경 5개 파일, diff 147줄)
 
 | 구분 | OFF (기본) | ON (`--safe-mode`) |
 |---|---|---|
-| 콘솔 | `[WARN] diff 에 민감정보로 보이는 패턴이 3건 있습니다 ... --safe-mode 사용을 권장합니다.` | `[INFO] safe-mode ON: 민감정보 3건 마스킹 · 파일 1→1개 · 줄 14→14줄` |
-| 전송되는 diff | `ADMIN_EMAIL = "owner@example.com"` | `ADMIN_EMAIL = "[MASKED]"` |
-| 전송되는 diff | `API_TOKEN = "sk-demo-..."` | `API_TOKEN = "[MASKED]"` |
-| 정상 코드 | `os.environ['AI_API_KEY']` 그대로 | 그대로 (환경변수를 읽는 코드는 마스킹하지 않음) |
+| 콘솔 | `[WARN] diff 에 민감정보로 보이는 패턴이 1건 있습니다 ... --safe-mode 사용을 권장합니다.` | `[INFO] safe-mode ON: 민감정보 1건 마스킹 · 파일 5→5개 · 줄 147→147줄` |
+| 전송되는 diff | `+password = "supersecret1234"` | `+password = "[MASKED]"` |
+
+![OFF: 값이 그대로 전송됨](docs/screenshots/12-safe-mode-off-exposed.png)
+
+![ON: 값이 MASKED로 치환됨](docs/screenshots/11-safe-mode-on-masked.png)
+
+**실험 2: 전송량 제한** (120줄짜리 파일 3개에 가짜 키·이메일을 넣은 변경, `--max-files 2 --max-lines 100`)
+
+| 구분 | OFF (기본) | ON (`--safe-mode --max-files 2 --max-lines 100`) |
+|---|---|---|
+| 콘솔 | `diff 수집 완료: 380줄` + 민감정보 **3건** 경고 | `safe-mode ON: 민감정보 3건 마스킹 · 파일 3→2개 · 줄 380→100줄` |
+| 전송되는 양 | 380줄 전체 | 최대 2개 파일 / 100줄 |
+
+![ON/OFF 수치 비교](docs/screenshots/10-safe-mode-numbers-on-off.png)
+
+스크롤이 긴 원본 전체 화면은 `docs/screenshots/safe-mode-full/` 폴더에 있습니다.
 
 한계도 분명합니다. 정규식 기반이라 **일반 문장 속 비밀번호, 인코딩된 값, 회사 고유 식별자는 못 거를 수 있습니다.** 이런 값은 `--mask-pattern`으로 추가하거나, 애초에 `.gitignore`로 커밋 대상에서 제외하세요.
 
@@ -298,6 +399,60 @@ python main.py pr --convention conventions/example.md
 ```
 
 컨벤션 파일의 내용(최대 2,000자)이 시스템 프롬프트에 `[팀 컨벤션]` 블록으로 합쳐집니다. 출력 형식과 검증 규칙(제목 길이, PR 3섹션)은 컨벤션과 충돌해도 유지됩니다. `--dry-run`으로 프롬프트에 실제로 반영됐는지 확인할 수 있습니다.
+
+**적용 전/후 비교** (같은 변경 사항에 `--safe-mode`를 붙여 실제 API를 1회씩 호출). 데모 컨벤션 `conventions/b3-2-demo.md`는 결과가 눈에 띄게 달라지도록 일부러 특이한 규칙을 담았습니다.
+
+```text
+## 커밋 컨벤션
+- 커밋 제목은 반드시 `[B3-2]` 로 시작한다. (예: `[B3-2] feat(cli): 옵션 추가`)
+- 본문 불릿은 최대 2개만 쓴다.
+```
+
+| 구분 | 생성된 커밋 제목 |
+|---|---|
+| 적용 전 | `chore(demo): demo_1.txt 및 demo_2.txt 추가` |
+| 적용 후 | `[B3-2] chore: demo_1.txt 및 demo_2.txt 추가` |
+
+![컨벤션 적용 전/후](docs/screenshots/13-convention-before-after.png)
+
+#### 이전 미션 저장소 스타일 분석과 컨벤션 문서 (보너스)
+
+B3-1 저장소의 `git log --oneline -15`를 분석해 `docs/COMMIT_CONVENTION.md`를 만들고, 이 파일을 `--convention`으로 넘겨 실제 효과를 확인했습니다.
+
+| 분석 결과 | 내용 |
+|---|---|
+| 다수 패턴 | `docs: 한글 요약` (예: `docs: IAM 사용자 로그인 증빙 추가, 정리 체크리스트 보완`) |
+| 예외 1 | `docs:change` — 콜론 뒤 공백이 없고 무엇을 바꿨는지 알 수 없음 |
+| 예외 2 | `Update README.md for consistency in formatting` — GitHub 웹 편집기 기본 문구 |
+| 결론 | 접두어는 유지하고, 공백과 구체적인 한글 요약을 규칙으로 명시 |
+
+컨벤션 문서의 핵심 규칙은 다음과 같습니다.
+
+- 형식은 `type(scope): 한글 요약`이고 scope는 필수입니다. 제목은 50자 이내, `type:` 뒤에 공백 한 칸을 둡니다.
+- 본문은 불릿으로 "왜"를 쓰고, 파일명만 나열하는 줄과 웹 편집기 기본 문구는 쓰지 않습니다.
+- PR 제목에도 type 접두어를 붙이고, 본문은 PR 템플릿의 Why / What / How to Test를 채웁니다.
+- 2차 보강으로 scope를 `readme`, `evidence`, `network`, `convention` 네 가지로 제한했습니다.
+
+**적용 전/후 (B3-1에서 같은 변경에 `commit --safe-mode`를 컨벤션 없이/있이 1회씩 실행)**
+
+| 단계 | 컨벤션 | 생성된 커밋 메시지 | 관찰 |
+|---|---|---|---|
+| 1차 | 없음 | 제목 `docs(commit): 커밋 컨벤션 보강 및 이력 분석 추가`, 본문 불릿 2개 | 본문 불릿이 `docs/COMMIT_CONVENTION.md:`로 시작 |
+| 1차 | 있음 | 제목 `docs(commit): 기존 이력 분석 추가 및 커밋 규칙 보강`, 본문 불릿 2개 | 형식이 거의 같고 문구만 다름 (유의미한 차이 없음) |
+| 2차 | 없음 | 제목 `docs(convention): scope 목록 제한 추가`, 본문에 파일명만 적힌 줄 + 불릿 2개 | 파일명 단독 줄이 있음 |
+| 2차 | 있음 | 제목 `docs(convention): scope 목록 안내 추가`, 본문 불릿 2개 | 파일명 단독 줄이 사라지고 "변경 이유" 불릿이 생김 |
+
+솔직한 평가: 1차에서는 컨벤션 유무에 따른 차이가 거의 없었습니다. 그래서 컨벤션을 보강해 2차를 다시 돌렸고, 2차에서 **파일명 단독 줄 제거와 "왜" 불릿 추가**라는 차이가 확인됐습니다. 제목의 type/scope 형식은 컨벤션 없이도 비슷하게 나왔습니다. 컨벤션이 모델을 완전히 통제하는 것은 아니므로 결과는 항상 검토가 필요합니다.
+
+![기존 이력 분석을 담은 컨벤션 문서](docs/screenshots/bonus-b3-1/08-convention-v2-history-analysis.png)
+
+![컨벤션 적용 전/후 1차](docs/screenshots/bonus-b3-1/09-convention-before-after-1.png)
+
+![scope 목록 추가 후 적용 전/후 2차](docs/screenshots/bonus-b3-1/11-scope-list-before-after-2.png)
+
+![컨벤션으로 커밋된 메시지 이력](docs/screenshots/bonus-b3-1/15-git-log-stored-messages.png)
+
+`conventions/example.md`는 Conventional Commits 기반의 일반적인 팀 규칙 예시이고, 실제 팀 규칙에 맞게 고쳐 쓰는 용도입니다. 모델이 컨벤션을 항상 지키는 것은 아니므로 결과는 검토가 필요합니다.
 
 ## 설계 Trade-off
 
@@ -325,8 +480,15 @@ python main.py pr --convention conventions/example.md
 
 - **`[ERROR] AI API 호출 실패: HTTP 401`**: 키가 틀렸거나 `--provider`와 키의 종류가 다릅니다. OpenAI 키로 `--provider anthropic`을 쓰는 식의 불일치를 확인하세요.
 - **`HTTP 400`/`404`**: 모델명이 없거나 해당 모델이 `temperature`·`max_tokens`를 지원하지 않을 수 있습니다. 서버 메시지가 함께 출력되니 확인 후 `--model`을 바꾸세요.
+- **`HTTP 403` (예: `This API key is not allowed for the Anthropic-compatible API`)**: 키가 해당 호환 방식(Anthropic 또는 OpenAI)용이 아닙니다. 코디세이 API 콘솔처럼 키를 방식별로 나눠 발급하는 곳에서는 `--provider`와 키 종류를 맞춰야 합니다.
+- **`HTTP 502 Provider returned an error`**: 게이트웨이 뒤의 모델이 요청 파라미터를 거부한 경우입니다. `gpt-5`·`o` 계열은 `temperature`와 `max_tokens`를 받지 않아, 이 도구는 해당 모델에서 `max_completion_tokens`를 대신 보냅니다.
 - **`HTTP 429`**: 요청 한도나 크레딧 부족입니다. 잠시 후 다시 실행하거나 결제/한도 상태를 확인하세요.
 - **diff가 비어 있다는 경고**: 새로 만든(untracked) 파일만 있는 경우입니다. `git add -N <파일>` 후 다시 실행하면 내용이 diff에 포함됩니다.
-- **테스트 실행**: `python -m unittest discover -s tests` (키·네트워크 불필요)
+- **테스트 실행**: `python -m unittest discover -s tests` (키·네트워크 불필요). `python -m unittest`만 쓰면 `tests` 폴더가 패키지가 아니라서 테스트가 0개 실행됩니다.
+- **Windows에서 커밋 직후 한글이 깨져 보임**: `git commit -m "한글"` 직후 출력이 깨져도 저장된 메시지는 정상인 경우가 있습니다. `git log -1 --format=%B`와 `git config --get i18n.commitencoding`으로 확인하세요(이 저장소는 둘 다 utf-8). 다만 터미널 인코딩이 불안하면 커밋 메시지를 영어로 쓰는 것이 안전합니다.
+
+  ![커밋 직후 깨진 출력]({IMG}git-workflow/commit-push-garbled-display.png)
+
+  ![저장된 메시지와 인코딩 확인]({IMG}git-workflow/git-log-encoding-utf8.png)
 - **`--convention` 파일 인코딩**: UTF-8로 저장해야 합니다. Windows 메모장에서 ANSI로 저장하면 `[ERROR] 컨벤션 파일은 UTF-8 텍스트여야 합니다`가 출력됩니다.
 - **실제 AI 응답은 직접 확인이 필요합니다**: 테스트는 가짜 서버로 요청 형식과 처리 흐름을 검증한 것이며, 실제 모델 응답의 품질은 사용자가 키를 설정해 실행해서 확인해야 합니다.
